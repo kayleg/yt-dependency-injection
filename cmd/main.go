@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"../cache"
 	"../database"
@@ -44,6 +45,29 @@ func (a *apiServer) createProviderMiddleware() func(http.Handler) http.Handler {
 			next.ServeHTTP(w, req)
 		})
 	}
+}
+
+func insertSample(rw http.ResponseWriter, req *http.Request) {
+	repositories := req.Context().Value(provider.ContextKey).(provider.RepositoryProvider)
+
+	value := fmt.Sprintf("Entry Created At: %v", time.Now())
+	err := repositories.Database().Insert(req.Context(), "records", value)
+	if err != nil {
+		// Do something about the error (log, alert, etc)
+		fmt.Println("Failed to add item to db")
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := repositories.Cache().Delete("all-records"); err != nil {
+		// Do something about the error (log, alert, etc)
+		// Maybe even revert the insert/transaction
+		fmt.Println("Failed to clear cache")
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	rw.Header().Add("Content-Type", "text/html")
+	_, _ = rw.Write([]byte("Inserted a value <a href='/'>View Records</a>"))
 }
 
 func getAllRecords(rw http.ResponseWriter, req *http.Request) {
@@ -97,6 +121,7 @@ func main() {
 
 	router := http.NewServeMux()
 	router.HandleFunc("/", getAllRecords)
+	router.HandleFunc("/insert", insertSample)
 
 	_ = http.ListenAndServe(":8080", server.createProviderMiddleware()(router))
 

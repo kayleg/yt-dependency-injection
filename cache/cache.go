@@ -9,6 +9,7 @@ const (
 type Executor interface {
 	Set(key string, data []byte) error
 	Get(key string) ([]byte, error)
+	Delete(key string) error
 }
 
 type InMemory struct {
@@ -21,6 +22,11 @@ func (i *InMemory) Get(key string) ([]byte, error) {
 
 func (i *InMemory) Set(key string, data []byte) error {
 	i.data[key] = data
+	return nil
+}
+
+func (i *InMemory) Delete(key string) error {
+	delete(i.data, key)
 	return nil
 }
 

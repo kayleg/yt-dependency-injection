@@ -14,6 +14,7 @@ const (
 type Executor interface {
 	LookupByID(ctx context.Context, tableName string, id uint64) (interface{}, error)
 	LookupAll(ctx context.Context, tableName string) ([]interface{}, error)
+	Insert(ctx context.Context, tableName string, value interface{}) error
 }
 
 // Sample executor implementation
@@ -44,6 +45,18 @@ func (i *InMemory) LookupAll(ctx context.Context, tableName string) ([]interface
 		return values, nil
 	}
 	return nil, ErrNotFound
+}
+
+func (i *InMemory) Insert(ctx context.Context, tableName string, value interface{}) error {
+	if table, exists := i.data[tableName]; exists {
+		// This could overflow - don't use it in production code
+		table[uint64(len(table)+1)] = value
+	} else {
+		table = make(map[uint64]interface{}, 1)
+		table[1] = value
+		i.data[tableName] = table
+	}
+	return nil
 }
 
 func NewInMemoryDB( /*config*/ ) *InMemory {
